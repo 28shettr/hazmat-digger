@@ -1,0 +1,1415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HAZMAT DIGGER — A Dig Dug-Inspired Arcade Game</title>
+<style>
+  /* ============================================================
+     HAZMAT DIGGER
+     A Dig Dug-inspired arcade game with a hazmat-suit hero.
+     ============================================================ */
+
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap');
+
+  :root {
+    --hazmat-yellow: #FFC72C;
+    --hazmat-blue: #4A90E2;
+    --dirt-1: #6B3410;
+    --dirt-2: #5A2B0E;
+    --dirt-3: #4A2208;
+    --sky: #1a0e2e;
+    --tunnel: #0a0610;
+    --rock: #888;
+    --neon: #00ffd1;
+    --danger: #ff3860;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    background:
+      radial-gradient(ellipse at top, #2a1a4a 0%, #0a0610 60%),
+      #0a0610;
+    color: #fff;
+    font-family: 'VT323', monospace;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 16px;
+  }
+
+  .stage {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .title-bar {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    font-family: 'Press Start 2P', monospace;
+    color: var(--hazmat-yellow);
+    text-shadow:
+      3px 3px 0 #000,
+      0 0 20px rgba(255,199,44,0.4);
+    letter-spacing: 2px;
+  }
+
+  .title-bar h1 {
+    font-size: 22px;
+  }
+
+  .title-bar .sub {
+    font-family: 'VT323', monospace;
+    font-size: 22px;
+    color: var(--neon);
+    letter-spacing: 1px;
+    text-shadow: 0 0 8px var(--neon);
+  }
+
+  .hud {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    width: 100%;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    color: #fff;
+    background: linear-gradient(180deg, #1a0e2e, #0a0610);
+    border: 2px solid var(--hazmat-yellow);
+    padding: 10px 14px;
+    box-shadow:
+      0 0 0 2px #000,
+      0 0 24px rgba(255,199,44,0.3);
+  }
+
+  .hud .label {
+    color: var(--neon);
+    font-size: 9px;
+    margin-bottom: 4px;
+    letter-spacing: 1px;
+  }
+
+  .hud .value {
+    color: var(--hazmat-yellow);
+    font-size: 14px;
+  }
+
+  .canvas-wrap {
+    position: relative;
+    border: 3px solid var(--hazmat-yellow);
+    box-shadow:
+      0 0 0 3px #000,
+      0 0 40px rgba(255,199,44,0.25),
+      inset 0 0 60px rgba(0,0,0,0.8);
+    background: #000;
+  }
+
+  canvas {
+    display: block;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+
+  .overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: rgba(10, 6, 16, 0.88);
+    backdrop-filter: blur(2px);
+    text-align: center;
+    padding: 20px;
+    z-index: 10;
+  }
+
+  .overlay.hidden { display: none; }
+
+  .overlay h2 {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 28px;
+    color: var(--hazmat-yellow);
+    text-shadow: 3px 3px 0 #000, 0 0 20px rgba(255,199,44,0.6);
+    letter-spacing: 3px;
+  }
+
+  .overlay h2.danger {
+    color: var(--danger);
+    text-shadow: 3px 3px 0 #000, 0 0 20px rgba(255,56,96,0.6);
+  }
+
+  .overlay p {
+    font-size: 22px;
+    color: #d8d8e8;
+    max-width: 480px;
+    line-height: 1.4;
+  }
+
+  .overlay .controls {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 6px 16px;
+    font-size: 18px;
+    color: var(--neon);
+    margin-top: 4px;
+  }
+
+  .overlay .controls span:nth-child(odd) {
+    color: var(--hazmat-yellow);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+  }
+
+  .btn {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    padding: 14px 26px;
+    background: var(--hazmat-yellow);
+    color: #000;
+    border: 3px solid #000;
+    box-shadow: 4px 4px 0 #000, 4px 4px 0 4px var(--hazmat-yellow);
+    cursor: pointer;
+    letter-spacing: 2px;
+    transition: transform 0.08s;
+  }
+
+  .btn:hover { transform: translate(-2px, -2px); }
+  .btn:active { transform: translate(2px, 2px); box-shadow: 0 0 0 #000; }
+
+  .footer-tip {
+    font-size: 16px;
+    color: #888;
+    letter-spacing: 1px;
+  }
+
+  .footer-tip kbd {
+    background: #1a0e2e;
+    border: 1px solid var(--hazmat-yellow);
+    padding: 2px 7px;
+    color: var(--hazmat-yellow);
+    font-family: 'VT323', monospace;
+    font-size: 16px;
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <!-- Title bar -->
+  <div class="title-bar">
+    <h1>HAZMAT DIGGER</h1>
+    <span class="sub">// dig. pump. survive.</span>
+  </div>
+
+  <!-- HUD -->
+  <div class="hud">
+    <div>
+      <div class="label">SCORE</div>
+      <div class="value" id="hudScore">0</div>
+    </div>
+    <div>
+      <div class="label">HI-SCORE</div>
+      <div class="value" id="hudHi">0</div>
+    </div>
+    <div>
+      <div class="label">LIVES</div>
+      <div class="value" id="hudLives">♥♥♥</div>
+    </div>
+    <div>
+      <div class="label">LEVEL</div>
+      <div class="value" id="hudLevel">1</div>
+    </div>
+  </div>
+
+  <!-- Canvas + overlays -->
+  <div class="canvas-wrap">
+    <canvas id="game" width="640" height="560"></canvas>
+
+    <div class="overlay" id="startOverlay">
+      <h2>READY?</h2>
+      <p>You're a hazmat hero deep underground. Dig tunnels, pump the toxic critters until they pop, and drop rocks on their heads.</p>
+      <div class="controls">
+        <span>MOVE</span><span>Arrows / WASD / D-pad / Stick</span>
+        <span>PUMP</span><span>SPACE / A / X / RT</span>
+        <span>PAUSE</span><span>P / Start</span>
+      </div>
+      <div id="padStatus" style="font-size:16px;color:#888;letter-spacing:1px;">No controller detected</div>
+      <button class="btn" id="startBtn">START</button>
+    </div>
+
+    <div class="overlay hidden" id="pauseOverlay">
+      <h2>PAUSED</h2>
+      <p>Press <kbd style="background:#1a0e2e;border:1px solid var(--hazmat-yellow);padding:2px 7px;color:var(--hazmat-yellow);font-family:'VT323',monospace;font-size:16px;">P</kbd> to resume.</p>
+    </div>
+
+    <div class="overlay hidden" id="gameOverOverlay">
+      <h2 class="danger">GAME OVER</h2>
+      <p>Final score: <span id="finalScore" style="color:var(--hazmat-yellow);">0</span></p>
+      <button class="btn" id="restartBtn">PLAY AGAIN</button>
+    </div>
+
+    <div class="overlay hidden" id="levelOverlay">
+      <h2>LEVEL CLEAR!</h2>
+      <p>Bonus: <span id="levelBonus" style="color:var(--hazmat-yellow);">0</span></p>
+    </div>
+  </div>
+
+  <div class="footer-tip">
+    Tip: pump enemies <kbd>3x</kbd> to pop them &nbsp;·&nbsp; lure them under rocks for big points
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   HAZMAT DIGGER — game logic
+   Single-file HTML5 Canvas implementation.
+   Sections:
+     1. CONFIG & CONSTANTS
+     2. ASSET LOADING  (this is where the player sprite is loaded)
+     3. WORLD / GRID
+     4. PLAYER
+     5. ENEMIES
+     6. ROCKS (gravity)
+     7. PROJECTILES (pump)
+     8. PARTICLES
+     9. INPUT
+    10. GAME LOOP
+    11. RENDERING (this is where the player sprite is drawn)
+    12. UI / STATE MACHINE
+   ============================================================ */
+
+(() => {
+'use strict';
+
+// ====================================================
+// 1. CONFIG & CONSTANTS
+// ====================================================
+const TILE = 32;                    // tile size in px
+const COLS = 20;                    // map width  (640px / 32)
+const ROWS = 17;                    // map height (560px / 32)  - row 0 is sky
+const SKY_ROWS = 1;                 // top row(s) reserved for surface
+
+const PLAYER_SPEED = 2.2;           // px per frame
+const ENEMY_SPEED = 1.1;
+const ENEMY_GHOST_SPEED = 0.55;     // when phasing through dirt
+const PUMP_RANGE = 3 * TILE;        // how far a pump shot reaches
+const PUMP_HOLD_FRAMES = 90;        // frames an enemy stays inflated before deflating
+const PUMP_HITS_TO_KILL = 3;
+const ROCK_FALL_DELAY = 30;         // frames a rock wobbles before falling
+const ROCK_FALL_SPEED = 4;
+
+const SCORE_PUMP_KILL = 200;
+const SCORE_ROCK_KILL = 1000;
+const SCORE_LEVEL_BONUS = 500;
+
+const MAX_LIVES = 3;
+
+// ====================================================
+// 2. ASSET LOADING
+// ----------------------------------------------------
+// >>> THE PLAYER SPRITE IS LOADED HERE <<<
+// To swap the character, replace PLAYER_SPRITE_SRC with:
+//   - a path to a new image:  'mychar.png'
+//   - or a new base64 data URL: 'data:image/png;base64,....'
+// The image is drawn with transparency; a PNG with a transparent
+// background works best. (A JPG will show its background color.)
+// ====================================================
+const PLAYER_SPRITE_SRC = 'assets/player.png';
+
+const playerImg = new Image();
+let playerImgReady = false;
+playerImg.onload = () => { playerImgReady = true; };
+playerImg.onerror = () => { console.warn('Player sprite failed to load; using fallback.'); };
+playerImg.src = PLAYER_SPRITE_SRC;
+
+// ====================================================
+// 3. WORLD / GRID
+// ----------------------------------------------------
+// world[row][col] is one of:
+//   'D' = dirt (solid, diggable)
+//   'T' = tunnel (empty, walkable)
+//   'S' = sky / surface (empty, walkable, top of map)
+// ====================================================
+const world = [];
+const surfaceTiles = []; // for decoration
+
+function buildWorld(level) {
+  world.length = 0;
+  surfaceTiles.length = 0;
+
+  for (let r = 0; r < ROWS; r++) {
+    const row = [];
+    for (let c = 0; c < COLS; c++) {
+      if (r < SKY_ROWS) {
+        row.push('S');
+      } else {
+        row.push('D');
+      }
+    }
+    world.push(row);
+  }
+
+  // Pre-carve a few starter tunnels so the level isn't a solid block.
+  // More tunnels on higher levels (more enemy mobility = harder).
+  const tunnelCount = 3 + Math.min(level, 4);
+  for (let i = 0; i < tunnelCount; i++) {
+    carveRandomTunnel();
+  }
+
+  // Surface decorations (little plants/rocks on the top row)
+  for (let c = 0; c < COLS; c++) {
+    surfaceTiles.push({
+      kind: Math.random() < 0.18 ? 'plant' : (Math.random() < 0.06 ? 'pebble' : 'flat'),
+      seed: Math.random()
+    });
+  }
+}
+
+function carveRandomTunnel() {
+  let r = SKY_ROWS + 1 + Math.floor(Math.random() * (ROWS - SKY_ROWS - 2));
+  let c = Math.floor(Math.random() * COLS);
+  const length = 6 + Math.floor(Math.random() * 10);
+  const horizontal = Math.random() < 0.5;
+  for (let i = 0; i < length; i++) {
+    if (r >= SKY_ROWS && r < ROWS && c >= 0 && c < COLS) {
+      world[r][c] = 'T';
+    }
+    if (horizontal) c += (Math.random() < 0.5 ? -1 : 1);
+    else r += (Math.random() < 0.5 ? -1 : 1);
+    r = Math.max(SKY_ROWS, Math.min(ROWS - 1, r));
+    c = Math.max(0, Math.min(COLS - 1, c));
+  }
+}
+
+function tileAt(px, py) {
+  const c = Math.floor(px / TILE);
+  const r = Math.floor(py / TILE);
+  if (r < 0 || r >= ROWS || c < 0 || c >= COLS) return 'X';
+  return world[r][c];
+}
+
+function isSolid(px, py) {
+  return tileAt(px, py) === 'D';
+}
+
+// Carve dirt at world coordinate, returns true if dirt was removed.
+function digAt(px, py) {
+  const c = Math.floor(px / TILE);
+  const r = Math.floor(py / TILE);
+  if (r < SKY_ROWS || r >= ROWS || c < 0 || c >= COLS) return false;
+  if (world[r][c] === 'D') {
+    world[r][c] = 'T';
+    spawnDirtParticles(c * TILE + TILE / 2, r * TILE + TILE / 2);
+    return true;
+  }
+  return false;
+}
+
+// ====================================================
+// 4. PLAYER
+// ====================================================
+const player = {
+  x: 0, y: 0,
+  w: TILE - 4, h: TILE - 4,
+  vx: 0, vy: 0,
+  facing: 1,           // 1 = right, -1 = left
+  dir: 'right',        // 'left' | 'right' | 'up' | 'down'
+  walkFrame: 0,
+  alive: true,
+  pumping: false,
+  invuln: 0,           // i-frames after respawn
+  spawn() {
+    // Spawn at top center on a tunnel
+    const c = Math.floor(COLS / 2);
+    const r = SKY_ROWS;
+    world[r][c] = 'T';
+    world[r][c - 1] = 'T';
+    world[r][c + 1] = 'T';
+    this.x = c * TILE + 2;
+    this.y = r * TILE + 2;
+    this.vx = this.vy = 0;
+    this.alive = true;
+    this.invuln = 90;
+    this.dir = 'right';
+    this.facing = 1;
+  }
+};
+
+// ====================================================
+// 5. ENEMIES
+// ----------------------------------------------------
+// Two types (both placeholder-rendered, easy to swap for sprites):
+//   'pooka'  — round red goggle-creature, harmless but persistent
+//   'fygar'  — green dragon-ish, can breathe fire (we keep it simple
+//              and just have it move faster and be worth more points)
+// Enemies can "ghost" through dirt (move slowly through it) to chase
+// the player, just like in the arcade original.
+// ====================================================
+const enemies = [];
+
+function spawnEnemies(level) {
+  enemies.length = 0;
+  const count = 3 + level;
+  for (let i = 0; i < count; i++) {
+    // Place each enemy on a random tunnel tile that's not too close to spawn.
+    let tries = 0, placed = false;
+    while (!placed && tries < 200) {
+      tries++;
+      const r = SKY_ROWS + 1 + Math.floor(Math.random() * (ROWS - SKY_ROWS - 2));
+      const c = Math.floor(Math.random() * COLS);
+      if (world[r][c] === 'T' &&
+          Math.abs(c - COLS / 2) > 3) {
+        const isFygar = i % 3 === 2; // every third enemy is a fygar
+        enemies.push({
+          x: c * TILE + 2,
+          y: r * TILE + 2,
+          w: TILE - 4, h: TILE - 4,
+          dir: ['left','right','up','down'][Math.floor(Math.random()*4)],
+          type: isFygar ? 'fygar' : 'pooka',
+          alive: true,
+          ghost: false,         // moving through dirt?
+          inflated: 0,          // 0 = normal, 1..3 = inflation level
+          inflateTimer: 0,
+          state: 'wander',      // 'wander' | 'inflated' | 'popping'
+          stuck: 0,
+          color: isFygar ? '#3CD53E' : '#E94B4B',
+          dirChangeTimer: 0
+        });
+        placed = true;
+      }
+    }
+  }
+}
+
+// ====================================================
+// 6. ROCKS
+// ----------------------------------------------------
+// Rocks sit in dirt. When the dirt directly beneath them is dug
+// out, they wobble briefly and then fall. Falling rocks crush
+// enemies and the player.
+// ====================================================
+const rocks = [];
+
+function spawnRocks(level) {
+  rocks.length = 0;
+  const count = 4 + Math.floor(level / 2);
+  for (let i = 0; i < count; i++) {
+    let tries = 0;
+    while (tries < 200) {
+      tries++;
+      const r = SKY_ROWS + 1 + Math.floor(Math.random() * (ROWS - SKY_ROWS - 3));
+      const c = Math.floor(Math.random() * COLS);
+      if (world[r][c] === 'D' &&
+          (r + 1 >= ROWS || world[r + 1][c] === 'D')) {
+        rocks.push({
+          x: c * TILE,
+          y: r * TILE,
+          col: c,
+          row: r,
+          state: 'idle',     // 'idle' | 'wobble' | 'falling' | 'broken'
+          wobble: 0,
+          vy: 0
+        });
+        break;
+      }
+    }
+  }
+}
+
+// ====================================================
+// 7. PROJECTILES (pump)
+// ====================================================
+const pumps = [];
+
+function firePump() {
+  if (!player.alive) return;
+  // Direction the pump shoots
+  let dx = 0, dy = 0;
+  switch (player.dir) {
+    case 'left':  dx = -1; break;
+    case 'right': dx =  1; break;
+    case 'up':    dy = -1; break;
+    case 'down':  dy =  1; break;
+  }
+  pumps.push({
+    x: player.x + player.w / 2,
+    y: player.y + player.h / 2,
+    dx, dy,
+    distance: 0,
+    maxDistance: PUMP_RANGE,
+    hit: null,
+    extending: true,
+    life: 30
+  });
+  player.pumping = true;
+  setTimeout(() => { player.pumping = false; }, 200);
+}
+
+// ====================================================
+// 8. PARTICLES
+// ====================================================
+const particles = [];
+
+function spawnDirtParticles(x, y) {
+  for (let i = 0; i < 4; i++) {
+    particles.push({
+      x, y,
+      vx: (Math.random() - 0.5) * 2,
+      vy: (Math.random() - 0.5) * 2 - 0.5,
+      life: 20 + Math.random() * 10,
+      color: ['#6B3410','#5A2B0E','#7c3f15'][Math.floor(Math.random()*3)],
+      size: 2 + Math.random() * 2
+    });
+  }
+}
+
+function spawnPopParticles(x, y, color) {
+  for (let i = 0; i < 14; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = 1 + Math.random() * 3;
+    particles.push({
+      x, y,
+      vx: Math.cos(a) * s,
+      vy: Math.sin(a) * s,
+      life: 30 + Math.random() * 15,
+      color,
+      size: 2 + Math.random() * 2
+    });
+  }
+}
+
+// ====================================================
+// 9. INPUT
+// ====================================================
+const keys = Object.create(null);
+
+window.addEventListener('keydown', (e) => {
+  if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+  keys[e.key.toLowerCase()] = true;
+  if (e.code === 'Space') keys[' '] = true;
+
+  if (e.key.toLowerCase() === 'p' && state === 'playing') togglePause();
+  else if (e.key.toLowerCase() === 'p' && state === 'paused') togglePause();
+});
+
+window.addEventListener('keyup', (e) => {
+  keys[e.key.toLowerCase()] = false;
+  if (e.code === 'Space') keys[' '] = false;
+});
+
+function held(...names) {
+  return names.some(n => keys[n.toLowerCase()]);
+}
+
+// ====================================================
+// 9b. GAMEPAD (Xbox / PlayStation / generic USB pads)
+// ----------------------------------------------------
+// The browser Gamepad API is poll-based — we read the current
+// state every frame and translate it into the same `keys` flags
+// the keyboard uses. That way the rest of the game logic doesn't
+// need to know whether input came from a keyboard or controller.
+//
+// Button mapping uses the "Standard Gamepad" layout, which most
+// modern controllers report as. The mapping is:
+//   buttons[0]  = A / Cross           -> pump
+//   buttons[1]  = B / Circle          -> pump (alt)
+//   buttons[2]  = X / Square          -> pump (alt)
+//   buttons[7]  = Right Trigger (RT)  -> pump
+//   buttons[9]  = Start / Options     -> pause
+//   buttons[12..15] = D-pad up/down/left/right
+//   axes[0], axes[1] = left stick X / Y
+// ====================================================
+const padState = {
+  connected: false,
+  index: -1,
+  id: '',
+  prevButtons: [],     // for edge-detection (button just pressed)
+};
+const STICK_DEADZONE = 0.35;
+
+window.addEventListener('gamepadconnected', (e) => {
+  padState.connected = true;
+  padState.index = e.gamepad.index;
+  padState.id = e.gamepad.id;
+  updatePadStatus();
+});
+
+window.addEventListener('gamepaddisconnected', (e) => {
+  if (e.gamepad.index === padState.index) {
+    padState.connected = false;
+    padState.index = -1;
+    padState.id = '';
+    padState.prevButtons = [];
+    updatePadStatus();
+  }
+});
+
+function updatePadStatus() {
+  const el = document.getElementById('padStatus');
+  if (!el) return;
+  if (padState.connected) {
+    // Trim the long ID strings browsers report (e.g. "Xbox 360 Controller (Vendor: 045e Product: 028e)")
+    const short = padState.id.split('(')[0].trim() || 'Controller';
+    el.textContent = '🎮  ' + short + ' connected';
+    el.style.color = 'var(--neon)';
+  } else {
+    el.textContent = 'No controller detected';
+    el.style.color = '#888';
+  }
+}
+
+// Poll the gamepad each frame and inject its state into `keys`.
+// Called from the main loop, before update().
+function pollGamepad() {
+  if (!padState.connected) {
+    // Browsers sometimes don't fire 'gamepadconnected' until first input.
+    // Probe for any present pad each frame so the game still works.
+    const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (let i = 0; i < pads.length; i++) {
+      if (pads[i]) {
+        padState.connected = true;
+        padState.index = i;
+        padState.id = pads[i].id;
+        updatePadStatus();
+        break;
+      }
+    }
+    if (!padState.connected) return;
+  }
+
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  const gp = pads[padState.index];
+  if (!gp) {
+    padState.connected = false;
+    padState.prevButtons = [];
+    updatePadStatus();
+    return;
+  }
+
+  // ---- D-pad + left stick -> arrow-key flags ----
+  const ax = gp.axes[0] || 0;
+  const ay = gp.axes[1] || 0;
+  const dpadLeft  = gp.buttons[14] && gp.buttons[14].pressed;
+  const dpadRight = gp.buttons[15] && gp.buttons[15].pressed;
+  const dpadUp    = gp.buttons[12] && gp.buttons[12].pressed;
+  const dpadDown  = gp.buttons[13] && gp.buttons[13].pressed;
+
+  keys['arrowleft']  = dpadLeft  || ax < -STICK_DEADZONE;
+  keys['arrowright'] = dpadRight || ax >  STICK_DEADZONE;
+  keys['arrowup']    = dpadUp    || ay < -STICK_DEADZONE;
+  keys['arrowdown']  = dpadDown  || ay >  STICK_DEADZONE;
+
+  // ---- Pump: A / B / X / RT (held) ----
+  // We feed this into the same ' ' (space) flag the rest of the
+  // code already checks, so firePump() and the held-pump-inflation
+  // logic both work without modification.
+  const pumpHeld =
+    (gp.buttons[0] && gp.buttons[0].pressed) ||
+    (gp.buttons[1] && gp.buttons[1].pressed) ||
+    (gp.buttons[2] && gp.buttons[2].pressed) ||
+    (gp.buttons[7] && gp.buttons[7].pressed) ||
+    (gp.buttons[7] && gp.buttons[7].value > 0.5); // analog trigger
+
+  keys[' '] = pumpHeld;
+
+  // ---- Edge-triggered buttons: Start = pause, Y = unpause ----
+  // We compare against prevButtons so the action only fires on the
+  // frame the button was first pressed (not every frame it's held).
+  const startNow = !!(gp.buttons[9] && gp.buttons[9].pressed);
+  const startWas = !!padState.prevButtons[9];
+  if (startNow && !startWas) {
+    if (state === 'playing') togglePause();
+    else if (state === 'paused') togglePause();
+    else if (state === 'menu' || state === 'gameover') startGame();
+  }
+
+  // Save current button states for next frame's edge detection
+  padState.prevButtons = gp.buttons.map(b => b && b.pressed);
+}
+
+// ====================================================
+// 10. GAME STATE & LOOP
+// ====================================================
+let state = 'menu';     // 'menu' | 'playing' | 'paused' | 'levelclear' | 'gameover'
+let score = 0;
+let hiScore = +(localStorage.getItem('hazmat_hi') || 0);
+let lives = MAX_LIVES;
+let level = 1;
+let levelClearTimer = 0;
+let respawnTimer = 0;
+
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+const hudScore = document.getElementById('hudScore');
+const hudHi = document.getElementById('hudHi');
+const hudLives = document.getElementById('hudLives');
+const hudLevel = document.getElementById('hudLevel');
+const startOverlay = document.getElementById('startOverlay');
+const pauseOverlay = document.getElementById('pauseOverlay');
+const gameOverOverlay = document.getElementById('gameOverOverlay');
+const levelOverlay = document.getElementById('levelOverlay');
+const finalScore = document.getElementById('finalScore');
+const levelBonus = document.getElementById('levelBonus');
+
+document.getElementById('startBtn').addEventListener('click', startGame);
+document.getElementById('restartBtn').addEventListener('click', startGame);
+
+function startGame() {
+  score = 0;
+  lives = MAX_LIVES;
+  level = 1;
+  startLevel();
+  state = 'playing';
+  startOverlay.classList.add('hidden');
+  gameOverOverlay.classList.add('hidden');
+  levelOverlay.classList.add('hidden');
+  pauseOverlay.classList.add('hidden');
+  updateHUD();
+}
+
+function startLevel() {
+  buildWorld(level);
+  spawnRocks(level);
+  player.spawn();
+  spawnEnemies(level);
+  pumps.length = 0;
+  particles.length = 0;
+}
+
+function togglePause() {
+  if (state === 'playing') {
+    state = 'paused';
+    pauseOverlay.classList.remove('hidden');
+  } else if (state === 'paused') {
+    state = 'playing';
+    pauseOverlay.classList.add('hidden');
+  }
+}
+
+function updateHUD() {
+  hudScore.textContent = score;
+  hudHi.textContent = Math.max(score, hiScore);
+  hudLives.textContent = lives > 0 ? '♥'.repeat(lives) : '—';
+  hudLevel.textContent = level;
+}
+
+// ----- PHYSICS / UPDATE STEP --------------------------------
+
+function update() {
+  if (state !== 'playing') return;
+
+  updatePlayer();
+  updateEnemies();
+  updateRocks();
+  updatePumps();
+  updateParticles();
+
+  // Win check: all enemies dead?
+  if (enemies.every(e => !e.alive) && state === 'playing') {
+    state = 'levelclear';
+    const bonus = SCORE_LEVEL_BONUS * level + lives * 100;
+    score += bonus;
+    levelBonus.textContent = bonus;
+    levelOverlay.classList.remove('hidden');
+    levelClearTimer = 120;
+    updateHUD();
+  }
+}
+
+function updatePlayer() {
+  if (!player.alive) {
+    respawnTimer--;
+    if (respawnTimer <= 0) {
+      if (lives > 0) {
+        player.spawn();
+      } else {
+        gameOver();
+      }
+    }
+    return;
+  }
+
+  if (player.invuln > 0) player.invuln--;
+
+  // Movement input — one cardinal direction at a time (cleaner DigDug feel)
+  let mvx = 0, mvy = 0;
+  if (held('arrowleft','a')) { mvx = -1; player.dir = 'left'; player.facing = -1; }
+  else if (held('arrowright','d')) { mvx = 1; player.dir = 'right'; player.facing = 1; }
+  else if (held('arrowup','w')) { mvy = -1; player.dir = 'up'; }
+  else if (held('arrowdown','s')) { mvy = 1; player.dir = 'down'; }
+
+  const newX = player.x + mvx * PLAYER_SPEED;
+  const newY = player.y + mvy * PLAYER_SPEED;
+
+  // Try to move. We dig dirt that we move into.
+  if (mvx !== 0 || mvy !== 0) {
+    // Dig the tile the player center is moving into
+    const cx = newX + player.w / 2;
+    const cy = newY + player.h / 2;
+    digAt(cx, cy);
+    // Also dig the corners to prevent visual stuck-on-edge
+    digAt(newX, newY);
+    digAt(newX + player.w, newY);
+    digAt(newX, newY + player.h);
+    digAt(newX + player.w, newY + player.h);
+
+    // Now check if we can occupy the new position (after digging)
+    if (canOccupy(newX, newY, player.w, player.h)) {
+      player.x = newX;
+      player.y = newY;
+      player.walkFrame = (player.walkFrame + 0.2) % 4;
+    }
+  }
+
+  // Clamp inside the world
+  player.x = Math.max(0, Math.min((COLS * TILE) - player.w, player.x));
+  player.y = Math.max(0, Math.min((ROWS * TILE) - player.h, player.y));
+
+  // Pump action
+  if (held(' ')) {
+    if (pumps.length === 0) firePump();
+  }
+}
+
+function canOccupy(x, y, w, h) {
+  // The four corners must all be in non-solid (T or S) tiles.
+  const points = [
+    [x, y],
+    [x + w - 1, y],
+    [x, y + h - 1],
+    [x + w - 1, y + h - 1],
+    [x + w / 2, y + h / 2]
+  ];
+  for (const [px, py] of points) {
+    if (isSolid(px, py)) return false;
+  }
+  return true;
+}
+
+function updateEnemies() {
+  for (const e of enemies) {
+    if (!e.alive) continue;
+
+    if (e.state === 'inflated' || e.state === 'popping') {
+      e.inflateTimer--;
+      if (e.state === 'inflated' && e.inflateTimer <= 0) {
+        // Deflate
+        e.state = 'wander';
+        e.inflated = 0;
+      }
+      continue; // can't move while inflated
+    }
+
+    // Decide whether to ghost (phase through dirt) — chance grows as game goes on
+    // and when stuck against dirt.
+    if (e.dirChangeTimer <= 0) {
+      e.dirChangeTimer = 30 + Math.floor(Math.random() * 60);
+      // Mostly pick the direction towards the player
+      if (Math.random() < 0.6) {
+        const dx = player.x - e.x;
+        const dy = player.y - e.y;
+        if (Math.abs(dx) > Math.abs(dy)) {
+          e.dir = dx < 0 ? 'left' : 'right';
+        } else {
+          e.dir = dy < 0 ? 'up' : 'down';
+        }
+      } else {
+        e.dir = ['left','right','up','down'][Math.floor(Math.random() * 4)];
+      }
+      // Chance to ghost
+      e.ghost = Math.random() < 0.15;
+    }
+    e.dirChangeTimer--;
+
+    let speed = e.type === 'fygar' ? ENEMY_SPEED * 1.15 : ENEMY_SPEED;
+    if (e.ghost) speed = ENEMY_GHOST_SPEED;
+
+    let dx = 0, dy = 0;
+    switch (e.dir) {
+      case 'left':  dx = -speed; break;
+      case 'right': dx =  speed; break;
+      case 'up':    dy = -speed; break;
+      case 'down':  dy =  speed; break;
+    }
+
+    const newX = e.x + dx;
+    const newY = e.y + dy;
+
+    if (e.ghost) {
+      // Phase through dirt freely, but on arrival to a tunnel tile, stop ghosting.
+      e.x = Math.max(0, Math.min((COLS * TILE) - e.w, newX));
+      e.y = Math.max(SKY_ROWS * TILE, Math.min((ROWS * TILE) - e.h, newY));
+      // If centered on a tunnel tile, stop ghosting.
+      const cTile = tileAt(e.x + e.w / 2, e.y + e.h / 2);
+      if (cTile === 'T' || cTile === 'S') {
+        e.ghost = false;
+      }
+    } else {
+      if (canOccupy(newX, newY, e.w, e.h)) {
+        e.x = newX;
+        e.y = newY;
+        e.stuck = 0;
+      } else {
+        e.stuck++;
+        if (e.stuck > 10) {
+          // pick a new direction
+          e.dirChangeTimer = 0;
+          if (Math.random() < 0.4) e.ghost = true;
+        }
+      }
+    }
+
+    // Touched player?
+    if (player.alive && player.invuln <= 0 && rectOverlap(e, player)) {
+      killPlayer();
+    }
+  }
+}
+
+function rectOverlap(a, b) {
+  return a.x < b.x + b.w &&
+         a.x + a.w > b.x &&
+         a.y < b.y + b.h &&
+         a.y + a.h > b.y;
+}
+
+function updateRocks() {
+  for (const rock of rocks) {
+    if (rock.state === 'broken') continue;
+
+    if (rock.state === 'idle') {
+      // Check if dirt directly below is gone (or if rock is at bottom of map).
+      const belowR = rock.row + 1;
+      if (belowR < ROWS && world[belowR][rock.col] !== 'D') {
+        rock.state = 'wobble';
+        rock.wobble = ROCK_FALL_DELAY;
+      }
+    } else if (rock.state === 'wobble') {
+      rock.wobble--;
+      if (rock.wobble <= 0) {
+        rock.state = 'falling';
+        rock.vy = 0;
+      }
+    } else if (rock.state === 'falling') {
+      rock.vy = Math.min(rock.vy + 0.4, ROCK_FALL_SPEED);
+      rock.y += rock.vy;
+
+      // Check collision with anything below
+      const newRow = Math.floor((rock.y + TILE - 1) / TILE);
+      const col = rock.col;
+
+      // Crush enemies
+      for (const e of enemies) {
+        if (!e.alive) continue;
+        const rockRect = { x: rock.x, y: rock.y, w: TILE, h: TILE };
+        if (rectOverlap(rockRect, e)) {
+          e.alive = false;
+          spawnPopParticles(e.x + e.w / 2, e.y + e.h / 2, e.color);
+          score += SCORE_ROCK_KILL;
+          updateHUD();
+        }
+      }
+      // Crush player
+      if (player.alive && player.invuln <= 0) {
+        const rockRect = { x: rock.x, y: rock.y, w: TILE, h: TILE };
+        if (rectOverlap(rockRect, player)) {
+          killPlayer();
+        }
+      }
+
+      // Stop when we hit dirt or floor
+      if (newRow >= ROWS - 1 || world[newRow + 1] && world[newRow + 1][col] === 'D') {
+        rock.y = newRow * TILE;
+        rock.row = newRow;
+        rock.state = 'broken';
+        spawnPopParticles(rock.x + TILE / 2, rock.y + TILE / 2, '#aaa');
+      }
+    }
+  }
+}
+
+function updatePumps() {
+  for (let i = pumps.length - 1; i >= 0; i--) {
+    const p = pumps[i];
+
+    if (p.extending && !p.hit) {
+      p.x += p.dx * 6;
+      p.y += p.dy * 6;
+      p.distance += 6;
+
+      // Hit a wall? (dirt blocks the pump)
+      if (isSolid(p.x, p.y)) {
+        pumps.splice(i, 1);
+        continue;
+      }
+
+      // Past max range?
+      if (p.distance >= p.maxDistance) {
+        pumps.splice(i, 1);
+        continue;
+      }
+
+      // Hit an enemy?
+      for (const e of enemies) {
+        if (!e.alive) continue;
+        if (p.x > e.x && p.x < e.x + e.w && p.y > e.y && p.y < e.y + e.h) {
+          p.hit = e;
+          break;
+        }
+      }
+    }
+
+    if (p.hit) {
+      // Held pump inflates the enemy further
+      if (held(' ')) {
+        p.life--;
+        if (p.life % 10 === 0 && p.hit.alive) {
+          p.hit.inflated = Math.min(PUMP_HITS_TO_KILL, (p.hit.inflated || 0) + 1);
+          p.hit.inflateTimer = PUMP_HOLD_FRAMES;
+          p.hit.state = 'inflated';
+          if (p.hit.inflated >= PUMP_HITS_TO_KILL) {
+            p.hit.alive = false;
+            spawnPopParticles(p.hit.x + p.hit.w / 2, p.hit.y + p.hit.h / 2, p.hit.color);
+            score += SCORE_PUMP_KILL * (p.hit.type === 'fygar' ? 2 : 1);
+            updateHUD();
+            pumps.splice(i, 1);
+            continue;
+          }
+        }
+      } else {
+        // Released — break the pump connection, enemy will deflate
+        pumps.splice(i, 1);
+        continue;
+      }
+    }
+  }
+}
+
+function updateParticles() {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx;
+    p.y += p.vy;
+    p.vy += 0.12;
+    p.life--;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+
+  // Level clear timer
+  if (state === 'levelclear') {
+    levelClearTimer--;
+    if (levelClearTimer <= 0) {
+      level++;
+      hudLevel.textContent = level;
+      levelOverlay.classList.add('hidden');
+      startLevel();
+      state = 'playing';
+    }
+  }
+}
+
+function killPlayer() {
+  player.alive = false;
+  spawnPopParticles(player.x + player.w / 2, player.y + player.h / 2, '#FFC72C');
+  lives--;
+  respawnTimer = 60;
+  updateHUD();
+}
+
+function gameOver() {
+  state = 'gameover';
+  if (score > hiScore) {
+    hiScore = score;
+    localStorage.setItem('hazmat_hi', String(hiScore));
+  }
+  finalScore.textContent = score;
+  gameOverOverlay.classList.remove('hidden');
+  updateHUD();
+}
+
+// ====================================================
+// 11. RENDERING
+// ====================================================
+
+function render() {
+  // Sky / background
+  const skyGrad = ctx.createLinearGradient(0, 0, 0, SKY_ROWS * TILE);
+  skyGrad.addColorStop(0, '#1a0e2e');
+  skyGrad.addColorStop(1, '#3a1a4a');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, COLS * TILE, SKY_ROWS * TILE);
+
+  // little stars on the sky
+  for (let i = 0; i < COLS * 2; i++) {
+    ctx.fillStyle = i % 5 === 0 ? '#fff' : '#bbb';
+    ctx.fillRect((i * 37) % (COLS * TILE), (i * 13) % (SKY_ROWS * TILE - 4) + 2, 1, 1);
+  }
+
+  // Surface line
+  ctx.fillStyle = '#2a1a0a';
+  ctx.fillRect(0, SKY_ROWS * TILE - 3, COLS * TILE, 3);
+
+  // Tiles
+  for (let r = SKY_ROWS; r < ROWS; r++) {
+    for (let c = 0; c < COLS; c++) {
+      const t = world[r][c];
+      const x = c * TILE, y = r * TILE;
+      if (t === 'D') {
+        drawDirt(x, y, r, c);
+      } else if (t === 'T') {
+        drawTunnel(x, y);
+      }
+    }
+  }
+
+  // Surface decorations
+  for (let c = 0; c < COLS; c++) {
+    const dec = surfaceTiles[c];
+    if (!dec) continue;
+    const x = c * TILE;
+    const y = SKY_ROWS * TILE - 3;
+    if (dec.kind === 'plant') {
+      ctx.fillStyle = '#3CD53E';
+      ctx.fillRect(x + 8 + (dec.seed * 8 | 0), y - 6, 2, 6);
+      ctx.fillRect(x + 6 + (dec.seed * 8 | 0), y - 4, 6, 2);
+    } else if (dec.kind === 'pebble') {
+      ctx.fillStyle = '#888';
+      ctx.fillRect(x + 14, y - 2, 4, 2);
+    }
+  }
+
+  // Rocks
+  for (const rock of rocks) {
+    if (rock.state === 'broken') continue;
+    drawRock(rock);
+  }
+
+  // Player
+  if (player.alive) drawPlayer();
+
+  // Enemies
+  for (const e of enemies) {
+    if (e.alive) drawEnemy(e);
+  }
+
+  // Pumps
+  for (const p of pumps) drawPump(p);
+
+  // Particles
+  for (const p of particles) {
+    ctx.globalAlpha = Math.max(0, p.life / 40);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x | 0, p.y | 0, p.size, p.size);
+    ctx.globalAlpha = 1;
+  }
+
+  // Vignette
+  const vig = ctx.createRadialGradient(
+    canvas.width / 2, canvas.height / 2, canvas.height * 0.3,
+    canvas.width / 2, canvas.height / 2, canvas.height * 0.75
+  );
+  vig.addColorStop(0, 'rgba(0,0,0,0)');
+  vig.addColorStop(1, 'rgba(0,0,0,0.55)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+}
+
+// ---- tile renderers --------------------------------------------------
+
+function drawDirt(x, y, r, c) {
+  // Base
+  ctx.fillStyle = '#5A2B0E';
+  ctx.fillRect(x, y, TILE, TILE);
+  // Layered streaks for texture
+  const seed = (r * 53 + c * 17) % 7;
+  ctx.fillStyle = '#6B3410';
+  ctx.fillRect(x + (seed * 3) % TILE, y + 4, TILE - 6, 2);
+  ctx.fillRect(x + 2, y + 14 + (seed % 4), TILE - 8, 2);
+  ctx.fillStyle = '#4A2208';
+  ctx.fillRect(x, y + TILE - 3, TILE, 1);
+  ctx.fillRect(x + TILE - 1, y, 1, TILE);
+  // little pebbles
+  ctx.fillStyle = '#7c3f15';
+  ctx.fillRect(x + 6 + seed, y + 22, 2, 2);
+  ctx.fillRect(x + 18 - seed, y + 8, 2, 2);
+}
+
+function drawTunnel(x, y) {
+  // The tunnel — slightly graded, with subtle inner shadow
+  ctx.fillStyle = '#0a0610';
+  ctx.fillRect(x, y, TILE, TILE);
+  ctx.fillStyle = 'rgba(255,255,255,0.025)';
+  ctx.fillRect(x + 1, y + 1, TILE - 2, 2);
+}
+
+function drawRock(rock) {
+  let dx = 0;
+  if (rock.state === 'wobble') {
+    dx = (Math.sin(rock.wobble * 0.6) * 2) | 0;
+  }
+  const x = rock.x + dx;
+  const y = rock.y;
+
+  // body
+  ctx.fillStyle = '#7a7a82';
+  ctx.fillRect(x + 2, y + 4, TILE - 4, TILE - 6);
+  ctx.fillStyle = '#9a9aa2';
+  ctx.fillRect(x + 4, y + 6, TILE - 12, TILE - 14);
+  ctx.fillStyle = '#5a5a62';
+  ctx.fillRect(x + 2, y + TILE - 4, TILE - 4, 2);
+  // crack
+  ctx.fillStyle = '#3a3a42';
+  ctx.fillRect(x + TILE / 2, y + 8, 1, 8);
+  ctx.fillRect(x + TILE / 2 - 2, y + 14, 4, 1);
+}
+
+// ---- PLAYER renderer ------------------------------------------------
+// >>> THIS IS WHERE THE PLAYER SPRITE IS DRAWN <<<
+// We use ctx.drawImage with the loaded `playerImg`. The sprite is
+// flipped horizontally based on facing direction. If the image isn't
+// loaded yet (or failed), we draw a yellow fallback square.
+function drawPlayer() {
+  // Blink during invulnerability
+  if (player.invuln > 0 && (player.invuln >> 2) % 2 === 0) {
+    ctx.globalAlpha = 0.4;
+  }
+
+  const px = player.x | 0;
+  const py = player.y | 0;
+  const w = player.w;
+  const h = player.h;
+
+  // Walk bounce — subtle vertical wobble for animation
+  const bounce = (Math.sin(player.walkFrame * Math.PI) * 1.5) | 0;
+
+  if (playerImgReady) {
+    ctx.save();
+    if (player.facing === -1) {
+      // Mirror horizontally for left-facing
+      ctx.translate(px + w, py + bounce);
+      ctx.scale(-1, 1);
+      ctx.drawImage(playerImg, 0, 0, w, h);
+    } else {
+      ctx.drawImage(playerImg, px, py + bounce, w, h);
+    }
+    ctx.restore();
+
+    // tiny attack flash if pumping
+    if (player.pumping) {
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillRect(px, py + bounce, w, h);
+    }
+  } else {
+    // Fallback rendering
+    ctx.fillStyle = '#FFC72C';
+    ctx.fillRect(px, py + bounce, w, h);
+    ctx.fillStyle = '#4A90E2';
+    ctx.fillRect(px + 6, py + 6 + bounce, w - 12, 8);
+  }
+
+  ctx.globalAlpha = 1;
+}
+
+// ---- ENEMY renderer (placeholder pixel art) -------------------------
+// Pookas (red) and Fygars (green). Easy to swap for sprite sheets later
+// — replace this function with a drawImage call using a per-enemy image.
+function drawEnemy(e) {
+  const x = e.x | 0;
+  const y = e.y | 0;
+  const w = e.w;
+  const h = e.h;
+
+  // If inflated, scale up
+  const scale = 1 + e.inflated * 0.18;
+  const sw = w * scale;
+  const sh = h * scale;
+  const sx = x - (sw - w) / 2;
+  const sy = y - (sh - h) / 2;
+
+  // Body
+  ctx.fillStyle = e.color;
+  ctx.fillRect(sx + 2, sy + 4, sw - 4, sh - 6);
+
+  // Highlight
+  ctx.fillStyle = e.type === 'fygar' ? '#7FFF7F' : '#ff8a8a';
+  ctx.fillRect(sx + 4, sy + 6, sw - 16, 4);
+
+  // Goggles (signature pooka look)
+  ctx.fillStyle = '#fff';
+  const gy = sy + sh / 2 - 2;
+  ctx.fillRect(sx + 5, gy, 7, 7);
+  ctx.fillRect(sx + sw - 12, gy, 7, 7);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(sx + 7, gy + 2, 3, 3);
+  ctx.fillRect(sx + sw - 10, gy + 2, 3, 3);
+
+  // Fygar wings/spikes
+  if (e.type === 'fygar') {
+    ctx.fillStyle = '#288c2a';
+    ctx.fillRect(sx, sy + 2, 4, 6);
+    ctx.fillRect(sx + sw - 4, sy + 2, 4, 6);
+  }
+
+  // Ghosting effect
+  if (e.ghost) {
+    ctx.globalAlpha = 0.5;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(sx, sy, sw, sh);
+    ctx.globalAlpha = 1;
+  }
+}
+
+function drawPump(p) {
+  // Hose (a yellow line from player to pump head)
+  ctx.strokeStyle = '#FFC72C';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(player.x + player.w / 2, player.y + player.h / 2);
+  ctx.lineTo(p.x, p.y);
+  ctx.stroke();
+
+  // Pump head
+  ctx.fillStyle = p.hit ? '#fff' : '#FFC72C';
+  ctx.fillRect((p.x | 0) - 4, (p.y | 0) - 4, 8, 8);
+  ctx.strokeStyle = '#000';
+  ctx.lineWidth = 1;
+  ctx.strokeRect((p.x | 0) - 4, (p.y | 0) - 4, 8, 8);
+}
+
+// ====================================================
+// 12. MAIN LOOP
+// ====================================================
+function loop() {
+  pollGamepad();   // read controller state -> `keys` flags
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+
+// Initial render so the canvas isn't blank behind the start overlay
+buildWorld(1);
+spawnRocks(1);
+player.spawn();
+spawnEnemies(1);
+updateHUD();
+loop();
+
+})();
+</script>
+</body>
+</html>
